@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>BCNY · AI Readiness Assessment</title>
+<title>BCNYS · AI Readiness Assessment</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #f1f5f9; min-height: 100vh; }
@@ -25,12 +26,24 @@
   .btn-primary:hover { background: #1e40af; }
   .btn-outline { background: transparent; color: #94a3b8; border: 1px solid #334155; }
   .btn-outline:hover { background: #1e293b; color: #f1f5f9; }
+  .btn-danger { background: #7f1d1d; color: #fca5a5; border: 1px solid #991b1b; }
+  .btn-danger:hover { background: #991b1b; color: #fff; }
+  .btn-amber { background: #451a03; color: #fbbf24; border: 1px solid #92400e; }
+  .btn-amber:hover { background: #78350f; color: #fde68a; }
+  .btn-green { background: #064e3b; color: #34d399; border: 1px solid #065f46; }
+  .btn-green:hover { background: #065f46; }
   .btn-sm { padding: 9px 20px; font-size: 13px; font-weight: 600; }
   .qr-box { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 24px; margin-bottom: 20px; }
   .qr-box p { color: #94a3b8; font-size: 13px; margin-bottom: 14px; }
   #qr-welcome, #qr-results { display: inline-block; padding: 8px; background: #fff; border-radius: 10px; }
   .qr-url { color: #475569; font-size: 11px; margin-top: 10px; word-break: break-all; }
   .note { color: #334155; font-size: 11px; }
+
+  /* Org header image */
+  .org-banner { width: 100%; border-radius: 14px; overflow: hidden; margin-bottom: 22px; border: 1px solid #1e293b; }
+  .org-banner img { width: 100%; height: auto; display: block; }
+  .org-banner-results { border-radius: 14px; overflow: hidden; margin-bottom: 20px; border: 1px solid #334155; }
+  .org-banner-results img { width: 100%; height: auto; display: block; max-height: 160px; object-fit: cover; object-position: top; }
 
   /* Vote */
   .progress-bar { background: #1e293b; border-radius: 99px; height: 6px; margin-bottom: 36px; overflow: hidden; }
@@ -50,9 +63,21 @@
   .ans-no:hover { background: #7f1d1d; transform: scale(1.03); }
   .anon-note { color: #475569; font-size: 11px; text-align: center; margin-top: 18px; }
 
+  /* Thanks screen */
+  .thanks-score-card { background: #1e293b; border: 1px solid #334155; border-radius: 20px; padding: 32px; margin-bottom: 20px; }
+  .thanks-score-num { font-size: 72px; font-weight: 900; line-height: 1; margin: 10px 0; }
+  .thanks-badge { display: inline-block; padding: 5px 18px; border-radius: 99px; font-weight: 700; font-size: 14px; border: 1px solid transparent; margin-bottom: 12px; }
+  .answer-list { margin: 20px 0; text-align: left; }
+  .answer-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: 12px; background: #0f172a; margin-bottom: 8px; }
+  .ans-pill { flex-shrink: 0; padding: 4px 11px; border-radius: 99px; font-size: 11px; font-weight: 800; letter-spacing: 0.5px; margin-top: 1px; }
+  .ans-pill.yes { background: #064e3b; color: #34d399; }
+  .ans-pill.no { background: #450a0a; color: #f87171; }
+  .answer-item-text { font-size: 12px; color: #94a3b8; line-height: 1.55; }
+  .answer-item-short { font-size: 13px; font-weight: 700; color: #f1f5f9; margin-bottom: 2px; }
+
   /* Results */
   .results-inner { max-width: 900px; margin: 0 auto; }
-  .results-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 36px; }
+  .results-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
   .results-title h2 { font-size: clamp(18px, 2.5vw, 26px); font-weight: 800; margin: 8px 0 4px; }
   .results-title .rcount { color: #64748b; font-size: 13px; }
   .header-btns { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
@@ -76,6 +101,40 @@
   .metric-bar { margin-top: 8px; background: #0f172a; border-radius: 99px; height: 5px; overflow: hidden; }
   .metric-fill { height: 100%; border-radius: 99px; }
   .footer-btns { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; padding-bottom: 40px; margin-top: 8px; }
+
+  /* Finalized banner */
+  .finalized-banner { display: none; background: linear-gradient(135deg, #064e3b 0%, #0d4429 100%); border: 1px solid #065f46; border-radius: 16px; padding: 18px 22px; margin-bottom: 24px; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .finalized-banner.visible { display: flex; }
+  .finalized-banner-icon { font-size: 28px; flex-shrink: 0; }
+  .finalized-banner-text h4 { font-size: 15px; font-weight: 800; color: #34d399; margin-bottom: 3px; }
+  .finalized-banner-text p { font-size: 12px; color: #6ee7b7; }
+  .finalized-banner-actions { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* Final insights section */
+  .final-insights { display: none; background: #1e293b; border: 1px solid #334155; border-radius: 20px; padding: 28px 24px; margin-bottom: 24px; }
+  .final-insights.visible { display: block; }
+  .insights-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .insights-header h3 { font-size: 16px; font-weight: 800; }
+  .insights-header span { background: #1a56db22; color: #60a5fa; border: 1px solid #1a56db55; border-radius: 99px; padding: 3px 12px; font-size: 11px; font-weight: 700; }
+  .insight-item { display: flex; gap: 14px; padding: 16px; border-radius: 14px; background: #0f172a; margin-bottom: 10px; align-items: flex-start; }
+  .insight-item:last-child { margin-bottom: 0; }
+  .insight-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+  .insight-label { font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .insight-text { font-size: 13px; color: #e2e8f0; line-height: 1.6; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+  .modal-overlay.active { display: flex; }
+  .modal-box { background: #1e293b; border: 1px solid #334155; border-radius: 24px; padding: 40px 36px; max-width: 460px; width: 90%; text-align: center; }
+  .modal-icon { font-size: 48px; margin-bottom: 18px; }
+  .modal-box h3 { font-size: 22px; font-weight: 800; margin-bottom: 12px; }
+  .modal-box p { color: #94a3b8; font-size: 14px; line-height: 1.75; margin-bottom: 28px; }
+  .modal-box .modal-warn { background: #451a03; border: 1px solid #92400e; border-radius: 10px; padding: 12px 16px; margin-bottom: 24px; color: #fbbf24; font-size: 13px; text-align: left; }
+  .modal-btns { display: flex; gap: 12px; justify-content: center; }
+
+  /* Closed session notice */
+  .session-closed-notice { background: #064e3b; border: 1px solid #065f46; border-radius: 14px; padding: 16px 20px; margin-bottom: 20px; color: #34d399; font-size: 13px; display: none; }
+  .session-closed-notice.visible { display: block; }
 </style>
 </head>
 <body>
@@ -83,11 +142,17 @@
 <!-- WELCOME -->
 <div class="screen active" id="screen-welcome">
   <div class="inner">
-    <div class="badge"><div class="logo">🏙️</div> Business Council of New York</div>
+    <div class="org-banner" id="org-banner-welcome">
+      <img src="bcnys_header.png" alt="BCNYS Platform" onerror="this.parentElement.style.display='none'">
+    </div>
+    <div class="badge"><div class="logo">🏛️</div> Business Council of New York State</div>
     <h1>New York's AI Moment:<br><span>Workforce, Competitiveness &<br>What Business Leaders Must Do Now</span></h1>
     <p class="sub">5-question anonymous AI readiness check.<br>No login · No names · Aggregated results only.</p>
+    <div class="session-closed-notice" id="session-closed-notice">
+      🔒 This session has been finalized by the presenter. Results are locked.
+    </div>
     <div class="btn-group">
-      <button class="btn btn-primary" onclick="startVote()">Take the Assessment →</button>
+      <button class="btn btn-primary" id="take-assessment-welcome" onclick="startVote()">Take the Assessment →</button>
       <button class="btn btn-outline" onclick="showResults()">📊 Presenter View</button>
       <button class="btn btn-outline" onclick="toggleQR('welcome')">📱 Show QR Code</button>
     </div>
@@ -104,7 +169,7 @@
 <div class="screen" id="screen-vote">
   <div class="inner" style="text-align:left;">
     <div class="q-header">
-      <span class="q-label">BCNY · AI Readiness</span>
+      <span class="q-label">BCNYS · AI Readiness</span>
       <span class="q-count" id="q-count">Question 1 of 5</span>
     </div>
     <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:20%"></div></div>
@@ -113,24 +178,62 @@
       <div class="q-text" id="q-text"></div>
     </div>
     <div class="ans-grid">
-      <button class="ans-btn ans-yes" onclick="answer('yes')">✅ YES</button>
-      <button class="ans-btn ans-no" onclick="answer('no')">❌ NO</button>
+      <button class="ans-btn ans-yes" onclick="answer('yes')">✓ YES</button>
+      <button class="ans-btn ans-no" onclick="answer('no')">✗ NO</button>
     </div>
     <p class="anon-note">Your response is anonymous. No identifying data is collected.</p>
+  </div>
+</div>
+
+<!-- THANKS -->
+<div class="screen" id="screen-thanks">
+  <div class="inner">
+    <div class="badge"><div class="logo">✓</div> Assessment Complete</div>
+    <h1>Thank You!<br><span id="thanks-headline">Here's your readiness snapshot</span></h1>
+    <div class="thanks-score-card">
+      <p style="color:#94a3b8;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Your Personal AI Readiness Score</p>
+      <div class="thanks-score-num" id="thanks-score-num">—</div>
+      <div class="thanks-badge" id="thanks-badge">—</div>
+      <div class="answer-list" id="answer-list"></div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="exportParticipantPDF()">⬇ Download My Summary (PDF)</button>
+      <button class="btn btn-outline" onclick="showResults()">📊 View Room Results</button>
+    </div>
+    <p class="note">Your responses are fully anonymized and have been added to the room total.</p>
   </div>
 </div>
 
 <!-- RESULTS -->
 <div class="results-screen" id="screen-results">
   <div class="results-inner">
+
+    <!-- Org banner image -->
+    <div class="org-banner-results" id="org-banner-results">
+      <img src="bcnys_header.png" alt="BCNYS Platform" onerror="this.parentElement.style.display='none'">
+    </div>
+
+    <!-- Finalized banner -->
+    <div class="finalized-banner" id="finalized-banner">
+      <div class="finalized-banner-icon">🔒</div>
+      <div class="finalized-banner-text">
+        <h4>SESSION FINALIZED</h4>
+        <p id="finalized-meta">Results locked · Fully anonymized</p>
+      </div>
+      <div class="finalized-banner-actions">
+        <button class="btn btn-green btn-sm" onclick="exportPresenterPDF()">⬇ Download Final Report (PDF)</button>
+      </div>
+    </div>
+
     <div class="results-header">
       <div class="results-title">
-        <span style="color:#60a5fa;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">BCNY · Live Results</span>
+        <span style="color:#60a5fa;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">BCNYS · Live Results</span>
         <h2>New York's AI Moment: Room Snapshot</h2>
         <p class="rcount" id="rcount">0 responses · Fully anonymized</p>
       </div>
       <div class="header-btns">
-        <button class="btn btn-outline btn-sm" onclick="exportCSV()">⬇ Export CSV</button>
+        <button class="btn btn-outline btn-sm" onclick="exportPresenterPDF()" id="export-pdf-btn">⬇ Export PDF</button>
+        <button class="btn btn-amber btn-sm" onclick="openFinalizeModal()" id="finalize-btn">🔒 Finalize Session</button>
         <button class="btn btn-outline btn-sm" onclick="toggleQR('results')">📱 QR Code</button>
       </div>
     </div>
@@ -165,41 +268,138 @@
       <canvas id="pie-chart" height="220"></canvas>
     </div>
 
+    <!-- Final insights (hidden until finalized) -->
+    <div class="final-insights" id="final-insights">
+      <div class="insights-header">
+        <h3>📈 Session Insights</h3>
+        <span>Finalized Analysis</span>
+      </div>
+      <div id="insights-list"></div>
+    </div>
+
     <div class="footer-btns">
       <button class="btn btn-primary" onclick="startVote()" id="take-btn">Take the Assessment</button>
       <button class="btn btn-outline" onclick="showWelcome()">← Back to Start</button>
-      <button class="btn btn-outline btn-sm" onclick="exportCSV()">⬇ Export CSV</button>
+      <button class="btn btn-outline btn-sm" onclick="exportPresenterPDF()">⬇ Export PDF</button>
     </div>
     <p class="note" style="text-align:center;padding-bottom:32px;">All responses are fully anonymized. No personal or organizational data is retained.</p>
   </div>
 </div>
 
+<!-- FINALIZE MODAL -->
+<div class="modal-overlay" id="modal-finalize">
+  <div class="modal-box">
+    <div class="modal-icon">🔒</div>
+    <h3>Finalize This Session?</h3>
+    <p>Once finalized, the results are locked and a full aggregated analysis will be generated for the room.</p>
+    <div class="modal-warn">
+      ⚠️ Participants will no longer be able to submit responses after you confirm. This action cannot be undone.
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-outline" onclick="closeFinalizeModal()">Cancel</button>
+      <button class="btn btn-green" onclick="confirmFinalize()">✓ Yes, Finalize Session</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const QUESTIONS = [
-  { icon: "📋", short: "Formal AI Transition Plan", text: "Does your organization have a formal AI workforce transition plan?" },
-  { icon: "🔭", short: "Role Mapping (3-Year View)", text: "Have you mapped which roles in your company will look fundamentally different in three years?" },
-  { icon: "👥", short: "HR AI-Skills Readiness", text: "Is your HR team equipped to retrain for AI-adjacent skills?" },
-  { icon: "💻", short: "IT Platform AI Readiness", text: "Has your IT team done an assessment of your organization's platform AI readiness?" },
-  { icon: "🗄️", short: "Data Quality for Agents", text: "Is your data reliable enough to be input into Agentic Agents and workstreams?" },
+  { icon: "📋", short: "Formal AI Transition Plan",   text: "Does your organization have a formal AI workforce transition plan?" },
+  { icon: "🗺️", short: "Role Mapping (3-Year View)",  text: "Have you mapped which roles in your company will look fundamentally different in three years?" },
+  { icon: "👥", short: "HR AI-Skills Readiness",       text: "Is your HR team equipped to retrain for AI-adjacent skills?" },
+  { icon: "💻", short: "IT Platform AI Readiness",     text: "Has your IT team done an assessment of your organization's platform AI readiness?" },
+  { icon: "🗄️", short: "Data Quality for Agents",     text: "Is your data reliable enough to be input into Agentic Agents and workstreams?" },
 ];
 
 let responses = QUESTIONS.map(() => ({ yes: 0, no: 0 }));
 let currentQ = 0;
 let answers = {};
-let submitted = false;
+let sessionFinalized = false;
+let finalTimestamp = null;
 let barChart, pieChart;
 let qrWelcomeDone = false, qrResultsDone = false;
+
+// Preload the org banner image for PDF embedding
+let headerImg = null;
+(function loadHeaderImage() {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width  = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      headerImg = {
+        data:   canvas.toDataURL('image/jpeg', 0.88),
+        width:  img.naturalWidth,
+        height: img.naturalHeight,
+      };
+    } catch (e) { headerImg = null; }
+  };
+  img.onerror = () => { headerImg = null; };
+  img.src = 'bcnys_header.png';
+})();
+
+// ── Screen management ─────────────────────────────────────────────────────────
 
 function showScreen(id) {
   document.querySelectorAll('.screen, .results-screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
 
-function showWelcome() { showScreen('screen-welcome'); }
+function showWelcome() {
+  if (sessionFinalized) {
+    document.getElementById('session-closed-notice').classList.add('visible');
+    document.getElementById('take-assessment-welcome').style.display = 'none';
+  }
+  showScreen('screen-welcome');
+}
+
 function showResults() { renderResults(); showScreen('screen-results'); }
 
+function showThanks() {
+  const yesCount = Object.values(answers).filter(v => v === 'yes').length;
+  const score = Math.round((yesCount / QUESTIONS.length) * 100);
+  const color = score >= 70 ? '#34d399' : score >= 40 ? '#fbbf24' : '#f87171';
+  const label = score >= 70 ? 'AI-Forward' : score >= 40 ? 'In Transition' : 'Early Stage';
+
+  const numEl = document.getElementById('thanks-score-num');
+  numEl.textContent = score + '%';
+  numEl.style.color = color;
+
+  const badgeEl = document.getElementById('thanks-badge');
+  badgeEl.textContent = label;
+  badgeEl.style.color = color;
+  badgeEl.style.background = color + '22';
+  badgeEl.style.borderColor = color + '55';
+
+  document.getElementById('thanks-headline').textContent =
+    score >= 70 ? 'Your organization is leading the pack!' :
+    score >= 40 ? 'Your organization is mid-transition.' :
+    'There are key readiness gaps to address.';
+
+  const list = document.getElementById('answer-list');
+  list.innerHTML = QUESTIONS.map((q, i) => {
+    const a = answers[i];
+    return `<div class="answer-item">
+      <span class="ans-pill ${a}">${a === 'yes' ? 'YES' : 'NO'}</span>
+      <div>
+        <div class="answer-item-short">${q.short}</div>
+        <div class="answer-item-text">${q.text}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  showScreen('screen-thanks');
+}
+
+// ── Assessment flow ───────────────────────────────────────────────────────────
+
 function startVote() {
-  currentQ = 0; answers = {};
+  if (sessionFinalized) return;
+  currentQ = 0;
+  answers = {};
   renderQ();
   showScreen('screen-vote');
 }
@@ -224,37 +424,116 @@ function answer(val) {
       currentQ++;
       renderQ();
     } else {
-      QUESTIONS.forEach((_, i) => {
-        if (answers[i] === 'yes') responses[i].yes++;
-        else responses[i].no++;
-      });
-      submitted = true;
-      document.getElementById('take-btn').style.display = 'none';
-      showResults();
+      if (!sessionFinalized) {
+        QUESTIONS.forEach((_, i) => {
+          if (answers[i] === 'yes') responses[i].yes++;
+          else responses[i].no++;
+        });
+      }
+      showThanks();
     }
   }, 220);
 }
 
+// ── Finalize session ──────────────────────────────────────────────────────────
+
+function openFinalizeModal() {
+  document.getElementById('modal-finalize').classList.add('active');
+}
+
+function closeFinalizeModal() {
+  document.getElementById('modal-finalize').classList.remove('active');
+}
+
+function confirmFinalize() {
+  closeFinalizeModal();
+  sessionFinalized = true;
+  finalTimestamp = new Date().toLocaleString('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit', hour12: true
+  });
+  const totalR = responses[0].yes + responses[0].no;
+
+  const banner = document.getElementById('finalized-banner');
+  banner.classList.add('visible');
+  document.getElementById('finalized-meta').textContent =
+    `Finalized ${finalTimestamp} · ${totalR} respondent${totalR !== 1 ? 's' : ''} · Fully anonymized`;
+
+  document.getElementById('finalize-btn').style.display = 'none';
+  document.getElementById('export-pdf-btn').textContent = '⬇ Download Final Report (PDF)';
+  document.getElementById('export-pdf-btn').className = 'btn btn-green btn-sm';
+  document.getElementById('take-btn').style.display = 'none';
+
+  renderInsights();
+  document.getElementById('final-insights').classList.add('visible');
+  renderResults();
+}
+
+function computeInsights() {
+  const totalYes = responses.reduce((s, r) => s + r.yes, 0);
+  const totalNo  = responses.reduce((s, r) => s + r.no, 0);
+  const total    = totalYes + totalNo || 1;
+  const score    = Math.round((totalYes / total) * 100);
+
+  const pcts = QUESTIONS.map((q, i) => {
+    const r = responses[i];
+    const t = r.yes + r.no || 1;
+    return { q, pct: Math.round((r.yes / t) * 100) };
+  });
+  const topStrength = pcts.reduce((a, b) => a.pct >= b.pct ? a : b);
+  const biggestGap  = pcts.reduce((a, b) => a.pct <= b.pct ? a : b);
+
+  const tierRec = score >= 70
+    ? 'Scale AI initiatives across business units, establish workforce adoption metrics, and lead agentic AI pilots in the highest-value areas. Consider sharing best practices through BCNYS working groups.'
+    : score >= 40
+    ? 'Accelerate role-mapping for AI-impacted positions, invest in data quality to enable reliable agentic workstreams, and build cross-functional AI governance and transition frameworks.'
+    : 'Begin with a structured AI readiness audit spanning workforce, data, and platforms. Engage HR to map skills gaps, and partner with IT to assess platform capabilities before deploying AI tools.';
+
+  return [
+    { icon: '💪', label: 'Top Strength',         text: `${topStrength.q.short} (${topStrength.pct}% Yes) — ${topStrength.q.text}` },
+    { icon: '⚠️', label: 'Biggest Gap',           text: `${biggestGap.q.short} (${biggestGap.pct}% Yes) — ${biggestGap.q.text}` },
+    { icon: '🎯', label: 'Group Readiness Tier',  text: score >= 70 ? 'AI-Forward — Your room is ahead of the curve.' : score >= 40 ? 'In Transition — Meaningful progress, key gaps remain.' : 'Early Stage — Foundational work is needed across most dimensions.' },
+    { icon: '📌', label: 'Recommended Next Steps', text: tierRec },
+  ];
+}
+
+function renderInsights() {
+  const insights = computeInsights();
+  document.getElementById('insights-list').innerHTML = insights.map(ins => `
+    <div class="insight-item">
+      <div class="insight-icon">${ins.icon}</div>
+      <div>
+        <div class="insight-label">${ins.label}</div>
+        <div class="insight-text">${ins.text}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── Results rendering ─────────────────────────────────────────────────────────
+
 function renderResults() {
   const totalYes = responses.reduce((s, r) => s + r.yes, 0);
-  const totalNo = responses.reduce((s, r) => s + r.no, 0);
-  const total = totalYes + totalNo || 1;
-  const totalR = responses[0].yes + responses[0].no;
-  const score = Math.round((totalYes / total) * 100);
-  const color = score >= 70 ? '#1a56db' : score >= 40 ? '#d97706' : '#e02424';
-  const label = score >= 70 ? 'AI-Forward' : score >= 40 ? 'In Transition' : 'Early Stage';
+  const totalNo  = responses.reduce((s, r) => s + r.no, 0);
+  const total    = totalYes + totalNo || 1;
+  const totalR   = responses[0].yes + responses[0].no;
+  const score    = Math.round((totalYes / total) * 100);
+  const color    = score >= 70 ? '#1a56db' : score >= 40 ? '#d97706' : '#e02424';
+  const label    = score >= 70 ? 'AI-Forward' : score >= 40 ? 'In Transition' : 'Early Stage';
 
-  document.getElementById('rcount').textContent = `${totalR} response${totalR !== 1 ? 's' : ''} · Fully anonymized`;
+  document.getElementById('rcount').textContent =
+    `${totalR} response${totalR !== 1 ? 's' : ''} · Fully anonymized`;
   document.getElementById('score-num').textContent = score + '%';
   document.getElementById('score-num').style.color = color;
+
   const sb = document.getElementById('score-badge');
-  sb.textContent = label; sb.style.color = color; sb.style.background = color + '22'; sb.style.borderColor = color + '55';
+  sb.textContent = label; sb.style.color = color;
+  sb.style.background = color + '22'; sb.style.borderColor = color + '55';
   document.getElementById('score-card').style.borderColor = color + '55';
   document.getElementById('tally-yes').textContent = totalYes;
-  document.getElementById('tally-no').textContent = totalNo;
-  document.getElementById('pie-sub').textContent = `All 5 dimensions combined · ${totalR} respondent${totalR !== 1 ? 's' : ''}`;
+  document.getElementById('tally-no').textContent  = totalNo;
+  document.getElementById('pie-sub').textContent =
+    `All 5 dimensions combined · ${totalR} respondent${totalR !== 1 ? 's' : ''}`;
 
-  // Metric cards
   const grid = document.getElementById('metric-grid');
   grid.innerHTML = QUESTIONS.map((q, i) => {
     const r = responses[i]; const t = r.yes + r.no || 1;
@@ -269,7 +548,6 @@ function renderResults() {
     </div>`;
   }).join('');
 
-  // Bar chart
   const barCtx = document.getElementById('bar-chart').getContext('2d');
   if (barChart) barChart.destroy();
   barChart = new Chart(barCtx, {
@@ -278,13 +556,15 @@ function renderResults() {
       labels: QUESTIONS.map(q => q.short),
       datasets: [
         { label: 'Yes', data: QUESTIONS.map((_, i) => { const r = responses[i]; const t = r.yes + r.no || 1; return Math.round((r.yes / t) * 100); }), backgroundColor: '#1a56db', borderRadius: 4 },
-        { label: 'No', data: QUESTIONS.map((_, i) => { const r = responses[i]; const t = r.yes + r.no || 1; return Math.round((r.no / t) * 100); }), backgroundColor: '#e02424', borderRadius: 4 },
+        { label: 'No',  data: QUESTIONS.map((_, i) => { const r = responses[i]; const t = r.yes + r.no || 1; return Math.round((r.no  / t) * 100); }), backgroundColor: '#e02424', borderRadius: 4 },
       ]
     },
     options: {
-      indexAxis: 'y',
-      responsive: true,
-      plugins: { legend: { labels: { color: '#94a3b8', font: { size: 12 } } }, tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.x}%` } } },
+      indexAxis: 'y', responsive: true,
+      plugins: {
+        legend: { labels: { color: '#94a3b8', font: { size: 12 } } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.x}%` } }
+      },
       scales: {
         x: { stacked: true, max: 100, ticks: { color: '#64748b', callback: v => v + '%' }, grid: { color: '#334155' } },
         y: { stacked: true, ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { display: false } }
@@ -292,7 +572,6 @@ function renderResults() {
     }
   });
 
-  // Pie chart
   const pieCtx = document.getElementById('pie-chart').getContext('2d');
   if (pieChart) pieChart.destroy();
   pieChart = new Chart(pieCtx, {
@@ -311,11 +590,13 @@ function renderResults() {
   });
 }
 
+// ── QR code ───────────────────────────────────────────────────────────────────
+
 function toggleQR(which) {
-  const box = document.getElementById(`qr-box-${which}`);
-  const el = document.getElementById(`qr-${which}`);
+  const box   = document.getElementById(`qr-box-${which}`);
+  const el    = document.getElementById(`qr-${which}`);
   const urlEl = document.getElementById(`qr-url-${which}`);
-  const url = window.location.href;
+  const url   = 'https://mreinhardt967.github.io/BCNYS-/bcny_standalone.html';
   if (box.style.display === 'none') {
     box.style.display = 'block';
     const done = which === 'welcome' ? qrWelcomeDone : qrResultsDone;
@@ -329,32 +610,294 @@ function toggleQR(which) {
   }
 }
 
-function exportCSV() {
+// ── Shared PDF helpers ────────────────────────────────────────────────────────
+
+// Draws the org banner image in the right portion of a header band already filled with color.
+// Returns the band height used so the caller can set y accordingly.
+function pdfAddHeaderBand(doc, PW, M, CW) {
+  const bandH = 54;
+  doc.setFillColor(26, 86, 219);
+  doc.rect(0, 0, PW, bandH, 'F');
+
+  // If the image is loaded, place it in the right ~45% of the band
+  if (headerImg) {
+    const aspect  = headerImg.width / headerImg.height;
+    const maxImgH = bandH - 6;          // 3mm padding top/bottom
+    const maxImgW = CW * 0.48;
+    const imgH    = maxImgH;
+    const imgW    = Math.min(imgH * aspect, maxImgW);
+    const imgX    = PW - M - imgW;
+    const imgY    = (bandH - imgH) / 2;
+    doc.addImage(headerImg.data, 'JPEG', imgX, imgY, imgW, imgH);
+  }
+
+  return bandH;
+}
+
+// ── PDF: Participant personal summary ─────────────────────────────────────────
+
+function exportParticipantPDF() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    alert('PDF library is loading — please try again in a moment.');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+
+  // US Letter: 215.9 × 279.4 mm
+  const PW = 215.9, PH = 279.4, M = 20, CW = PW - M * 2;
+  const BLUE = [26, 86, 219], DARK = [15, 23, 42], GRAY = [100, 116, 139], LGRAY = [241, 245, 249];
+
+  const yesCount = Object.values(answers).filter(v => v === 'yes').length;
+  const score    = Math.round((yesCount / QUESTIONS.length) * 100);
+  const label    = score >= 70 ? 'AI-Forward' : score >= 40 ? 'In Transition' : 'Early Stage';
+  const scoreRGB = score >= 70 ? [5, 150, 105] : score >= 40 ? [217, 119, 6] : [220, 38, 38];
+
+  // Header band with image
+  const bandH = pdfAddHeaderBand(doc, PW, M, CW);
+  // Text sits on the left side of the band (image occupies right side)
+  const textMaxW = headerImg ? CW * 0.50 : CW;
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+  doc.text('BUSINESS COUNCIL OF NEW YORK STATE', M, 13);
+  doc.setFontSize(15);
+  doc.text("Your AI Readiness Assessment", M, 24);
+  doc.setFontSize(9.5); doc.setFont('helvetica', 'normal');
+  const subLines = doc.splitTextToSize("New York's AI Moment · Personal Summary", textMaxW);
+  doc.text(subLines[0], M, 33);
+  doc.setFontSize(8);
+  doc.text(new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }), M, 43);
+
+  let y = bandH + 10;
+
+  // Score card
+  doc.setFillColor(...LGRAY);
+  doc.rect(M, y, CW, 38, 'F');
+  doc.setTextColor(...scoreRGB);
+  doc.setFontSize(42); doc.setFont('helvetica', 'bold');
+  doc.text(`${score}%`, M + 8, y + 28);
+  doc.setTextColor(...DARK);
+  doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+  doc.text('Your AI Readiness Score', M + 8, y + 35);
+  doc.setFillColor(...scoreRGB);
+  doc.rect(M + CW - 42, y + 12, 38, 11, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(9.5);
+  doc.text(label, M + CW - 42 + 19, y + 20, { align: 'center' });
+
+  y += 50;
+
+  doc.setTextColor(...DARK);
+  doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+  doc.text('Your Responses', M, y);
+  y += 10;
+
+  QUESTIONS.forEach((q, i) => {
+    const isYes  = answers[i] === 'yes';
+    const ansRGB = isYes ? [5, 150, 105] : [220, 38, 38];
+
+    doc.setFillColor(...LGRAY);
+    doc.rect(M, y, CW, 20, 'F');
+
+    doc.setFillColor(...ansRGB);
+    doc.rect(M + 4, y + 5, 18, 10, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+    doc.text(isYes ? 'YES' : 'NO', M + 4 + 9, y + 11.5, { align: 'center' });
+
+    doc.setTextColor(...DARK);
+    doc.setFontSize(8.5); doc.setFont('helvetica', 'bold');
+    doc.text(q.short, M + 28, y + 8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...GRAY);
+    doc.setFontSize(7.5);
+    doc.text(doc.splitTextToSize(q.text, CW - 32)[0], M + 28, y + 14);
+
+    y += 25;
+  });
+
+  y += 6;
+
+  const steps = score >= 70
+    ? ['• Scale AI initiatives and measure workforce adoption metrics',
+       '• Develop advanced agentic AI pilots in highest-value business areas',
+       '• Share best practices with peers through BCNYS working groups']
+    : score >= 40
+    ? ['• Accelerate role-mapping for AI-impacted positions over the next 3 years',
+       '• Invest in data quality initiatives to enable reliable agentic workstreams',
+       '• Build cross-functional AI governance and transition frameworks']
+    : ['• Begin with an AI readiness audit across workforce, data, and platforms',
+       '• Engage HR to identify AI-skills gaps and build a baseline training program',
+       '• Partner with IT to assess current platform capabilities for AI integration'];
+
+  doc.setFillColor(...BLUE);
+  doc.rect(M, y, CW, 44, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+  doc.text('Recommended Next Steps', M + 8, y + 11);
+  doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
+  steps.forEach((s, idx) => doc.text(s, M + 8, y + 21 + idx * 9));
+
+  // Footer (relative to PH so it works for any page size)
+  doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
+  doc.line(M, PH - 20, PW - M, PH - 20);
+  doc.setTextColor(...GRAY); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
+  doc.text('Your responses are fully anonymized. No personal or organizational data was collected.', PW / 2, PH - 13, { align: 'center' });
+  doc.text('Business Council of New York State · AI Readiness Assessment', PW / 2, PH - 7, { align: 'center' });
+
+  doc.save(`BCNYS_My_AI_Readiness_${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
+// ── PDF: Presenter final report ────────────────────────────────────────────────
+
+function exportPresenterPDF() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    alert('PDF library is loading — please try again in a moment.');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+
+  // US Letter: 215.9 × 279.4 mm
+  const PW = 215.9, PH = 279.4, M = 20, CW = PW - M * 2;
+  const BLUE   = [26, 86, 219];
+  const DARK   = [15, 23, 42];
+  const GRAY   = [100, 116, 139];
+  const LGRAY  = [241, 245, 249];
+  const GREEN  = [5, 150, 105];
+  const RED    = [220, 38, 38];
+
   const totalYes = responses.reduce((s, r) => s + r.yes, 0);
-  const totalNo = responses.reduce((s, r) => s + r.no, 0);
-  const total = totalYes + totalNo || 1;
-  const score = Math.round((totalYes / total) * 100);
-  const label = score >= 70 ? 'AI-Forward' : score >= 40 ? 'In Transition' : 'Early Stage';
-  const totalR = responses[0].yes + responses[0].no;
-  const rows = [
-    ['"BCNY — New York\'s AI Moment: Workforce, Competitiveness & What Business Leaders Must Do Now"'],
-    ['"Session AI Readiness Assessment Results"'],
-    [`"Exported: ${new Date().toLocaleString()}"`],
-    [`"Total Respondents: ${totalR}"`],
-    [],
-    ['"Question"', '"Yes"', '"No"', '"% Yes"', '"% No"'],
-    ...QUESTIONS.map((q, i) => {
-      const r = responses[i]; const t = r.yes + r.no || 1;
-      return [`"${q.text}"`, r.yes, r.no, Math.round((r.yes / t) * 100) + '%', Math.round((r.no / t) * 100) + '%'];
-    }),
-    [],
-    [`"Overall AI Readiness Score"`, `"${score}%"`, `"${label}"`],
-  ];
-  const csv = rows.map(r => Array.isArray(r) ? r.join(',') : r).join('\n');
-  const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  a.download = `BCNY_AI_Readiness_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
+  const totalNo  = responses.reduce((s, r) => s + r.no, 0);
+  const total    = totalYes + totalNo || 1;
+  const totalR   = responses[0].yes + responses[0].no;
+  const score    = Math.round((totalYes / total) * 100);
+  const label    = score >= 70 ? 'AI-Forward' : score >= 40 ? 'In Transition' : 'Early Stage';
+  const scoreRGB = score >= 70 ? GREEN : score >= 40 ? [217, 119, 6] : RED;
+  const dateStr  = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+  // ── Header band with image ──
+  const bandH = pdfAddHeaderBand(doc, PW, M, CW);
+  const textMaxW = headerImg ? CW * 0.50 : CW;
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+  doc.text('BUSINESS COUNCIL OF NEW YORK STATE', M, 13);
+  doc.setFontSize(17);
+  doc.text("New York's AI Moment", M, 25);
+  doc.setFontSize(9.5); doc.setFont('helvetica', 'normal');
+  doc.text(doc.splitTextToSize('Workforce, Competitiveness & What Business Leaders Must Do Now', textMaxW)[0], M, 34);
+  doc.setFontSize(8);
+  const statusText = sessionFinalized ? `FINAL SESSION REPORT · ${dateStr}` : `AI Readiness Assessment · ${dateStr}`;
+  doc.text(`${statusText} · ${totalR} Respondent${totalR !== 1 ? 's' : ''}`, M, 44);
+  if (sessionFinalized && finalTimestamp) {
+    doc.setFontSize(7.5);
+    doc.text(`Finalized: ${finalTimestamp}`, M, 51);
+  }
+
+  let y = bandH + 10;
+
+  // ── Overall score card ──
+  doc.setFillColor(...LGRAY);
+  doc.rect(M, y, CW, 40, 'F');
+  doc.setTextColor(...scoreRGB);
+  doc.setFontSize(44); doc.setFont('helvetica', 'bold');
+  doc.text(`${score}%`, M + 8, y + 29);
+  doc.setTextColor(...DARK);
+  doc.setFontSize(10.5); doc.setFont('helvetica', 'bold');
+  doc.text('Overall Room AI Readiness', M + 8, y + 37);
+  doc.setFillColor(...scoreRGB);
+  doc.rect(M + CW - 44, y + 11, 40, 12, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+  doc.text(label, M + CW - 44 + 20, y + 20, { align: 'center' });
+  const cx = M + CW * 0.56;
+  doc.setTextColor(...GREEN);
+  doc.setFontSize(19); doc.setFont('helvetica', 'bold');
+  doc.text(`${totalYes}`, cx, y + 21);
+  doc.setTextColor(...GRAY); doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
+  doc.text('Yes answers', cx + doc.getTextWidth(`${totalYes}`) + 2.5, y + 21);
+  doc.setTextColor(...RED);
+  doc.setFontSize(19); doc.setFont('helvetica', 'bold');
+  doc.text(`${totalNo}`, cx, y + 33);
+  doc.setTextColor(...GRAY); doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
+  doc.text('No answers', cx + doc.getTextWidth(`${totalNo}`) + 2.5, y + 33);
+
+  y += 52;
+
+  // ── Question breakdown ──
+  doc.setTextColor(...DARK);
+  doc.setFontSize(13); doc.setFont('helvetica', 'bold');
+  doc.text('Question-by-Question Breakdown', M, y);
+  doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...GRAY);
+  doc.text('Percentage of respondents answering Yes per readiness dimension', M, y + 6);
+  y += 15;
+
+  const BAR_W = CW - 20;
+  QUESTIONS.forEach((q, i) => {
+    const r    = responses[i];
+    const t    = r.yes + r.no || 1;
+    const pctY = Math.round((r.yes / t) * 100);
+    const yesW = (BAR_W * pctY) / 100;
+
+    doc.setTextColor(...DARK); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold');
+    doc.text(q.short, M, y);
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(...GRAY); doc.setFontSize(7.5);
+    doc.text(doc.splitTextToSize(q.text, BAR_W)[0], M, y + 5);
+
+    const bY = y + 8;
+    doc.setFillColor(255, 220, 220);
+    doc.rect(M, bY, BAR_W, 8, 'F');
+    if (pctY > 0) { doc.setFillColor(...BLUE); doc.rect(M, bY, yesW, 8, 'F'); }
+    if (pctY > 14) {
+      doc.setTextColor(255, 255, 255); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+      doc.text(`${pctY}%`, M + yesW / 2, bY + 5.5, { align: 'center' });
+    }
+    const noW = BAR_W - yesW;
+    if (100 - pctY > 14) {
+      doc.setTextColor(180, 40, 40); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+      doc.text(`${100 - pctY}%`, M + yesW + noW / 2, bY + 5.5, { align: 'center' });
+    }
+    doc.setTextColor(...BLUE); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+    doc.text(`${pctY}%`, M + BAR_W + 4, bY + 6);
+
+    y += 26;
+  });
+
+  // ── Insights (finalized only) ──
+  if (sessionFinalized) {
+    y += 4;
+    if (y > PH - 100) { doc.addPage(); y = 22; }
+
+    doc.setFillColor(237, 246, 255);
+    doc.rect(M, y, CW, 9, 'F');
+    doc.setTextColor(...BLUE); doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+    doc.text('Session Insights & Recommendations', M + 4, y + 6.5);
+    y += 13;
+
+    computeInsights().forEach(ins => {
+      const bodyLines = doc.splitTextToSize(ins.text, CW - 6);
+      const blockH = 8 + bodyLines.length * 5;
+      if (y + blockH > PH - 28) { doc.addPage(); y = 22; }
+      doc.setFillColor(...LGRAY);
+      doc.rect(M, y, CW, blockH, 'F');
+      doc.setTextColor(...BLUE); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+      doc.text(ins.label.toUpperCase(), M + 4, y + 6);
+      doc.setTextColor(...DARK); doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
+      doc.text(bodyLines, M + 4, y + 11.5);
+      y += blockH + 5;
+    });
+  }
+
+  // ── Footer ──
+  doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
+  doc.line(M, PH - 20, PW - M, PH - 20);
+  doc.setTextColor(...GRAY); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
+  doc.text('All responses are fully anonymized. No personal or organizational data was collected or retained.', PW / 2, PH - 13, { align: 'center' });
+  doc.text('Business Council of New York State · AI Readiness Assessment', PW / 2, PH - 7, { align: 'center' });
+
+  const tag = sessionFinalized ? 'Final' : 'Report';
+  doc.save(`BCNYS_AI_Readiness_${tag}_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 </script>
 </body>
